@@ -32,7 +32,7 @@ import ObjectMapper
 
 extension Request {
     
-    public static func ObjectMapperSerializer<T: Mappable>(keyPath: String?, mapToObject object: T? = nil) -> ResponseSerializer<T, NSError> {
+    public static func ObjectMapperSerializer<T: Mappable>(keyPath: String?, mapToObject object: T? = nil, apiError: ((NSHTTPURLResponse?, AnyObject?)-> NSError?)? = nil) -> ResponseSerializer<T, NSError> {
         return ResponseSerializer { request, response, data, error in
             guard error == nil else {
                 return .Failure(error!)
@@ -46,24 +46,8 @@ extension Request {
             
             let JSONResponseSerializer = Request.JSONResponseSerializer(options: .AllowFragments)
             let result = JSONResponseSerializer.serializeResponse(request, response, data, error)
-        
-            // API error logic
-            switch response!.statusCode {
-            case 200..<400:
-                break
-            default:
-                let errorString: String
-                if response!.statusCode == 401 {
-                    errorString = "Not logged in"
-                } else {
-                    if let dict = result.value as? [String: AnyObject] {
-                        errorString = (dict["message"] as? String) ?? dict.description
-                    } else {
-                        errorString = result.value?.description ?? "Unknown error"
-                    }
-                }
-                
-                let error = Error.errorWithCode(-1, failureReason: errorString)
+            
+            if let error = apiError?(response, result.value) {
                 return .Failure(error)
             }
             
@@ -80,13 +64,13 @@ extension Request {
             } else if let parsedObject = Mapper<T>().map(JSONToMap){
                 return .Success(parsedObject)
             }
-
+            
             let failureReason = "ObjectMapper failed to serialize response."
             let error = Error.errorWithCode(.DataSerializationFailed, failureReason: failureReason)
             return .Failure(error)
         }
     }
-
+    
     /**
      Adds a handler to be called once the request has finished.
      
@@ -98,11 +82,12 @@ extension Request {
      - returns: The request.
      */
     
-    public func responseObject<T: Mappable>(queue queue: dispatch_queue_t? = nil, keyPath: String? = nil, mapToObject object: T? = nil, completionHandler: Response<T, NSError> -> Void) -> Self {
-        return response(queue: queue, responseSerializer: Request.ObjectMapperSerializer(keyPath, mapToObject: object), completionHandler: completionHandler)
+    public func responseObject<T: Mappable>(queue queue: dispatch_queue_t? = nil, keyPath: String? = nil, mapToObject object: T? = nil, apiError: ((NSHTTPURLResponse?, AnyObject?)-> NSError?)? = nil, completionHandler: Response<T, NSError> -> Void) -> Self {
+        
+        return response(queue: queue, responseSerializer: Request.ObjectMapperSerializer(keyPath, mapToObject: object, apiError: apiError), completionHandler: completionHandler)
     }
     
-    public static func ObjectMapperArraySerializer<T: Mappable>(keyPath: String?) -> ResponseSerializer<[T], NSError> {
+    public static func ObjectMapperArraySerializer<T: Mappable>(keyPath: String?, apiError: ((NSHTTPURLResponse?, AnyObject?)-> NSError?)? = nil) -> ResponseSerializer<[T], NSError> {
         return ResponseSerializer { request, response, data, error in
             guard error == nil else {
                 return .Failure(error!)
@@ -117,23 +102,7 @@ extension Request {
             let JSONResponseSerializer = Request.JSONResponseSerializer(options: .AllowFragments)
             let result = JSONResponseSerializer.serializeResponse(request, response, data, error)
             
-            // API error logic
-            switch response!.statusCode {
-            case 200..<400:
-                break
-            default:
-                let errorString: String
-                if response!.statusCode == 401 {
-                    errorString = "Not logged in"
-                } else {
-                    if let dict = result.value as? [String: AnyObject] {
-                        errorString = (dict["message"] as? String) ?? dict.description
-                    } else {
-                        errorString = result.value?.description ?? "Unknown error"
-                    }
-                }
-                
-                let error = Error.errorWithCode(-1, failureReason: errorString)
+            if let error = apiError?(response, result.value) {
                 return .Failure(error)
             }
             
@@ -162,8 +131,8 @@ extension Request {
      - parameter completionHandler: A closure to be executed once the request has finished and the data has been mapped by ObjectMapper.
      
      - returns: The request.
-    */
-    public func responseArray<T: Mappable>(queue queue: dispatch_queue_t? = nil, keyPath: String? = nil, completionHandler: Response<[T], NSError> -> Void) -> Self {
-        return response(queue: queue, responseSerializer: Request.ObjectMapperArraySerializer(keyPath), completionHandler: completionHandler)
+     */
+    public func responseArray<T: Mappable>(queue queue: dispatch_queue_t? = nil, keyPath: String? = nil, apiError: ((NSHTTPURLResponse?, AnyObject?)-> NSError?)? = nil, completionHandler: Response<[T], NSError> -> Void) -> Self {
+        return response(queue: queue, responseSerializer: Request.ObjectMapperArraySerializer(keyPath, apiError: apiError), completionHandler: completionHandler)
     }
 }
