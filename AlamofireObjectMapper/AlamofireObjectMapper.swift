@@ -44,6 +44,9 @@ extension Request {
                 return .Failure(error)
             }
             
+            let JSONResponseSerializer = Request.JSONResponseSerializer(options: .AllowFragments)
+            let result = JSONResponseSerializer.serializeResponse(request, response, data, error)
+        
             // API error logic
             switch response!.statusCode {
             case 200..<400:
@@ -64,9 +67,6 @@ extension Request {
                 return .Failure(error)
             }
             
-            let JSONResponseSerializer = Request.JSONResponseSerializer(options: .AllowFragments)
-            let result = JSONResponseSerializer.serializeResponse(request, response, data, error)
-        
             let JSONToMap: AnyObject?
             if let keyPath = keyPath where keyPath.isEmpty == false {
                 JSONToMap = result.value?.valueForKeyPath(keyPath)
@@ -114,6 +114,9 @@ extension Request {
                 return .Failure(error)
             }
             
+            let JSONResponseSerializer = Request.JSONResponseSerializer(options: .AllowFragments)
+            let result = JSONResponseSerializer.serializeResponse(request, response, data, error)
+            
             // API error logic
             switch response!.statusCode {
             case 200..<400:
@@ -133,9 +136,6 @@ extension Request {
                 let error = Error.errorWithCode(-1, failureReason: errorString)
                 return .Failure(error)
             }
-            
-            let JSONResponseSerializer = Request.JSONResponseSerializer(options: .AllowFragments)
-            let result = JSONResponseSerializer.serializeResponse(request, response, data, error)
             
             let JSONToMap: AnyObject?
             if let keyPath = keyPath where keyPath.isEmpty == false {
