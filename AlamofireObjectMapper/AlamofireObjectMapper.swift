@@ -44,6 +44,26 @@ extension Request {
                 return .Failure(error)
             }
             
+            // API error logic
+            switch response!.statusCode {
+            case 200..<400:
+                break
+            default:
+                let errorString: String
+                if response!.statusCode == 401 {
+                    errorString = "Not logged in"
+                } else {
+                    if let dict = result.value as? [String: AnyObject] {
+                        errorString = (dict["message"] as? String) ?? dict.description
+                    } else {
+                        errorString = result.value?.description ?? "Unknown error"
+                    }
+                }
+                
+                let error = Error.errorWithCode(-1, failureReason: errorString)
+                return .Failure(error)
+            }
+            
             let JSONResponseSerializer = Request.JSONResponseSerializer(options: .AllowFragments)
             let result = JSONResponseSerializer.serializeResponse(request, response, data, error)
         
@@ -91,6 +111,26 @@ extension Request {
             guard let _ = data else {
                 let failureReason = "Data could not be serialized. Input data was nil."
                 let error = Error.errorWithCode(.DataSerializationFailed, failureReason: failureReason)
+                return .Failure(error)
+            }
+            
+            // API error logic
+            switch response!.statusCode {
+            case 200..<400:
+                break
+            default:
+                let errorString: String
+                if response!.statusCode == 401 {
+                    errorString = "Not logged in"
+                } else {
+                    if let dict = result.value as? [String: AnyObject] {
+                        errorString = (dict["message"] as? String) ?? dict.description
+                    } else {
+                        errorString = result.value?.description ?? "Unknown error"
+                    }
+                }
+                
+                let error = Error.errorWithCode(-1, failureReason: errorString)
                 return .Failure(error)
             }
             
